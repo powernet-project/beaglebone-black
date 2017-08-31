@@ -1,6 +1,6 @@
 # Creating a sqlite database
 import sqlite3
-sqlite_file = "/root/Programs/Python-Code/beaglebone-black/Databases/analogIn_test.sqlite"
+sqlite_file = "/root/Programs/Python-Code/Databases/analogIn_test.sqlite"
 #sqlite_file = "/Users/gcezar/Documents/BBB/analogIn_test.sqlite"
 tb_AnalogReads = "AnalogReads" # Table name
 tb_SensorList = "Sensor_List"
