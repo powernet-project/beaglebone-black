@@ -1,6 +1,7 @@
 import beaglebone_pru_adc as adc
 import time
 
+
 # Global variables:
 nSamples = 100
 
