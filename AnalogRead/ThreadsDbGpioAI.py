@@ -59,7 +59,8 @@ def RMS(data):
 
 def consumerAI(qAI):
     print "CONSUMER_AI..."
-    while(True):
+    try:
+        while(True):
         ai = qAI.get()
         date = qAI.get()
         if(qAI.empty()):
@@ -72,6 +73,8 @@ def consumerAI(qAI):
         f.push({'sensor_id': 0, 'date_time': str(date[0]), 'value': '%1.2f' % Irms[0]})
         f.push({'sensor_id': 1, 'date_time': str(date[1]), 'value': '%1.2f' % Irms[1]})
         print "Done writing to FB-DB"
+    except KeyboardInterrupt:
+        print "Keyboard interrupt via ctrl+c"
 
 
 
