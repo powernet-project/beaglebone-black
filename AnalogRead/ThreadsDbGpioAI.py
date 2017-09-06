@@ -71,20 +71,23 @@ def RMS(data):
 
 def consumerAI(qAI):
     #print "CONSUMER_AI..."
-    while(True):
-        tempCons = qAI.get()
-        ai = tempCons[0]
-        date = tempCons[1]
-        if(qAI.empty()):
-            qAI.task_done()
-            #print "Consumed queue"
-            Irms = RMS(ai[1:])
-            #print "Firebase write..."
-            ##### Writing to firebase
-            f.push({'sensor_id': 0, 'date_time': str(date[0]), 'value': '%1.2f' % Irms[0]})
-            f.push({'sensor_id': 1, 'date_time': str(date[1]), 'value': '%1.2f' % Irms[1]})
-            print "Done writing to FB-DB"
-        else: print "Queue not empty"
+    try:
+        while(True):
+            tempCons = qAI.get()
+            ai = tempCons[0]
+            date = tempCons[1]
+            if(qAI.empty()):
+                qAI.task_done()
+                #print "Consumed queue"
+                Irms = RMS(ai[1:])
+                #print "Firebase write..."
+                ##### Writing to firebase
+                f.push({'sensor_id': 0, 'date_time': str(date[0]), 'value': '%1.2f' % Irms[0]})
+                f.push({'sensor_id': 1, 'date_time': str(date[1]), 'value': '%1.2f' % Irms[1]})
+                print "Done writing to FB-DB"
+            else: print "Queue not empty"
+    except KeyboardInterrupt:
+        print('Interrupt via Keyboard')
 
 
 # Reading if there is any input for the relay
