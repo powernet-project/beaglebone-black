@@ -1,1 +1,1 @@
-# Beaglebone Black - HH - prototype - v1
+# Beaglebone Black - HH - prototype - v1.0
