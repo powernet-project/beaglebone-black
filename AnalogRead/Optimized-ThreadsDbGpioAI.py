@@ -11,6 +11,7 @@ from threading import Thread
 from datetime import datetime
 from firebase import Firebase as fb
 import time
+import copy
 
 # Global variables
 nSamples = 100
@@ -24,7 +25,7 @@ for key in gpioDict:
 
 
 # Initializing Firebase
-f = fb('https://fb-powernet.firebaseio.com/sensor_data/')
+f = fb('https://fb-powernet.firebaseio.com/DayTest')
 #f = fb('https://fb-powernet.firebaseio.com/OvernightTest')
 
 
@@ -72,10 +73,9 @@ def RMS(data):
 
 def consumerAI(qAI):
     #print "CONSUMER_AI..."
-    # Analog reads, date and sensorID lists to hold values for db upload in chunks
-    aiRMS=[]
-    dRMS = []
-    sId = []
+    # Template for DB
+    template = [{"sensor_id": 1, "samples": []}, {"sensor_id": 2, "samples": []}]
+    dFB = copy.copy(template)
     while(True):
         if not qAI.empty():
             tempCons = qAI.get()
@@ -84,29 +84,21 @@ def consumerAI(qAI):
             #print "Consumed queue"
             Irms = RMS(ai[1:])
             # Adding analog reads, sID and Date to lists for db upload
-            aiRMS.append(Irms[0])
-            sId.append(0)
-            dRMS.append(date[0])
-            # AI-1
-            aiRMS.append(Irms[1])
-            sId.append(1)
-            dRMS.append(date[1])
+            dFB[0].get("samples").append({"RMS": Irms[0], "date_time": date[0]})
+            dFB[1].get("samples").append({"RMS": Irms[1], "date_time": date[1]})
             # Queue is done processing the element
             qAI.task_done()
             print "Inserted..."
-            if(len(aiRMS)==20):
-                f.push({'sensor_id': sId, 'date_time': dRMS, 'value': aiRMS})
-                aiRMS[:] = []
-                sId[:] = []
-                dRMS[:] = []
+            print "dFB-1:", len(dFB[1]["samples"])
+            print "TEMPLATE: ", template
+            if(len(dFB[1]["samples"])==5):
+                f.push(dFB)
+                dFB[:]=[]
+                dFB = None
+                dFB = copy.copy(template)
                 print "Done writing to FB-DB"
+                print "dFB: ", dFB
                 print datetime.now()
-            #print "Firebase write..."
-            ##### Writing to firebase
-            #f.push({'sensor_id': 0, 'date_time': str(date[0]), 'value': '%1.2f' % Irms[0]})
-            #f.push({'sensor_id': 1, 'date_time': str(date[1]), 'value': '%1.2f' % Irms[1]})
-            #print "Done writing to FB-DB"
-        #else: print "Queue is empty"
 
 
 # Reading if there is any input for the relay
