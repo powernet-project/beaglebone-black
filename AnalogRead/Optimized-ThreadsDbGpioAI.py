@@ -75,7 +75,7 @@ def consumerAI(qAI):
     #print "CONSUMER_AI..."
     # Template for DB
     template = [{"sensor_id": 1, "samples": []}, {"sensor_id": 2, "samples": []}]
-    dFB = copy.copy(template)
+    dFB = copy.deepcopy(template)
     while(True):
         if not qAI.empty():
             tempCons = qAI.get()
@@ -89,15 +89,15 @@ def consumerAI(qAI):
             # Queue is done processing the element
             qAI.task_done()
             print "Inserted..."
-            print "dFB-1:", len(dFB[1]["samples"])
-            print "TEMPLATE: ", template
-            if(len(dFB[1]["samples"])==5):
+            #print "dFB-1:", len(dFB[1]["samples"])
+            #print "TEMPLATE: ", template
+            if(len(dFB[1]["samples"])==10):
                 f.push(dFB)
                 dFB[:]=[]
                 dFB = None
-                dFB = copy.copy(template)
+                dFB = copy.deepcopy(template)
                 print "Done writing to FB-DB"
-                print "dFB: ", dFB
+                #print "dFB: ", dFB
                 print datetime.now()
 
 
