@@ -24,7 +24,8 @@ for key in gpioDict:
 
 
 # Initializing Firebase
-f = fb('https://fb-powernet.firebaseio.com/sensor_data/')
+#f = fb('https://fb-powernet.firebaseio.com/sensor_data/')
+f = fb('https://fb-powernet.firebaseio.com/OvernightTest')
 
 
 def analogRead(off_value):
@@ -108,7 +109,7 @@ def relayTh():
         print "Device and State: ",device, state
         relayAct(device, state)
         td = time.time()
-        time.sleep(3)
+        time.sleep(5)
 
 def main():
 
