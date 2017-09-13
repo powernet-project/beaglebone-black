@@ -12,6 +12,7 @@ from datetime import datetime
 from firebase import Firebase as fb
 import time
 import copy
+import logging
 
 # Global variables
 nSamples = 100
@@ -25,7 +26,7 @@ for key in gpioDict:
 
 
 # Initializing Firebase
-f = fb('https://fb-powernet.firebaseio.com/DayTest')
+f = fb('https://fb-powernet.firebaseio.com/AfternoonTest')
 #f = fb('https://fb-powernet.firebaseio.com/OvernightTest')
 
 
@@ -54,7 +55,7 @@ def producerAI(formatAI,qAI):
         tempAI = zip(ai0,ai1)
         tempQueue = [tempAI, dts]
         qAI.put(tempQueue)
-        print "Queue done..."
+        #print "Queue done..."
         time.sleep(2)
 
 
@@ -88,22 +89,25 @@ def consumerAI(qAI):
             dFB[1].get("samples").append({"RMS": Irms[1], "date_time": date[1]})
             # Queue is done processing the element
             qAI.task_done()
-            print "Inserted..."
+            #print "Inserted..."
             #print "dFB-1:", len(dFB[1]["samples"])
             #print "TEMPLATE: ", template
             if(len(dFB[1]["samples"])==10):
-                f.push(dFB)
-                dFB[:]=[]
-                dFB = None
-                dFB = copy.deepcopy(template)
-                print "Done writing to FB-DB"
-                #print "dFB: ", dFB
-                print datetime.now()
+                try:
+                    f.push(dFB)
+                    dFB[:]=[]
+                    dFB = None
+                    dFB = copy.deepcopy(template)
+            #        print "Done writing to FB-DB"
+                    #print "dFB: ", dFB
+            #        print datetime.now()
+                except Exception as e:
+                    logging.exception("message")
 
 
 # Reading if there is any input for the relay
 def relayAct(device, state):
-    print "Actuating relay"
+    #print "Actuating relay"
     if state == "ON":
         GPIO.output(gpioDict[device],GPIO.HIGH)
     else:
@@ -111,7 +115,7 @@ def relayAct(device, state):
 
 # Dumb function to simulate interfacing web server looking for inputs
 def relayTh():
-    print "Starting relay thread..."
+    #print "Starting relay thread..."
     state = "OFF"
     device = "Lights"
     while(True):
@@ -119,7 +123,7 @@ def relayTh():
             state = "ON"
         else:
             state = "OFF"
-        print "Device and State: ",device, state
+        #print "Device and State: ",device, state
         relayAct(device, state)
         td = time.time()
         time.sleep(5)
