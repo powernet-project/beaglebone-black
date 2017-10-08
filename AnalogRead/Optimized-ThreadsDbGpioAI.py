@@ -13,13 +13,16 @@ from firebase import Firebase as fb
 import time
 import copy
 import logging
+import requests
 
 # Global variables
 nSamples = 100
 convertion = 1.8/4095.0
 
 # Initializing GPIOs:
-gpioDict = {"Lights": "P8_10", "Fan": "P8_14"}
+# gpioDict = {"Lights": "P8_10", "Fan": "P8_14"}
+applianceList = ["PW1", "RA1", "AC1", "DR1", "RF1"]
+gpioDict = {"PW1": "P8_9", "RA1": "P8_10", "AC1":"P8_11", "DR1":"P8_12", "RF1":"P8_14"}
 for key in gpioDict:
     GPIO.setup(gpioDict[key], GPIO.OUT)
     GPIO.output(gpioDict[key], GPIO.LOW)
@@ -28,7 +31,6 @@ for key in gpioDict:
 # Initializing Firebase
 f = fb('https://fb-powernet.firebaseio.com/AfternoonTest')
 #f = fb('https://fb-powernet.firebaseio.com/OvernightTest')
-
 
 def analogRead(off_value):
     capture = adc.Capture()
@@ -113,30 +115,48 @@ def relayAct(device, state):
     else:
         GPIO.output(gpioDict[device],GPIO.LOW)
 
-# Dumb function to simulate interfacing web server looking for inputs
+# Appliances ID:
+# id:1 ; Powerwall_1
+# id:2 ; Powerwall_2
+# id:3 ; Range_1
+# id:4 ; Range_2
+# id:5 ; AC_1
+# id:6 ; AC_2
 def relayTh():
-    #print "Starting relay thread..."
-    state = "OFF"
-    device = "Lights"
+    app_OrigStates = ["OFF","OFF","OFF","OFF","OFF"]
     while(True):
-        if state == "OFF":
-            state = "ON"
-        else:
-            state = "OFF"
-        #print "Device and State: ",device, state
-        relayAct(device, state)
+        print "relayTh"
         td = time.time()
-        time.sleep(5)
+        Powerwall_1 = requests.get("http://pwrnet-158117.appspot.com/api/v1/device/1")
+        status_PW1 = Powerwall_1.json()["status"]
+        Range_1 = requests.get("http://pwrnet-158117.appspot.com/api/v1/device/3")
+        status_RA1 = Range_1.json()["status"]
+        AC_1 = requests.get("http://pwrnet-158117.appspot.com/api/v1/device/5")
+        status_AC1 = AC_1.json()["status"]
+        Dryer_1 = requests.get("http://pwrnet-158117.appspot.com/api/v1/device/9")
+        status_DR1 = Dryer_1.json()["status"]
+        Refrigerator_1 = requests.get("http://pwrnet-158117.appspot.com/api/v1/device/10")
+        status_RF1 = Refrigerator_1.json()["status"]
+        app_NewStatus = [status_PW1, status_RA1, status_AC1, status_DR1, status_RF1]
+        for index,(first,second) in enumerate(zip(app_OrigStates,app_NewStatus)):
+            if first!=second:
+                #print "Appliance: ", applianceList[index]
+                #print "Status: ", second
+                relayAct(applianceList[index],second)
+                app_OrigStates = copy.deepcopy(app_NewStatus)
+                #print app_OrigStates
+        #print "time: ", time.time()-td
+        time.sleep(1)
+
 
 def main():
 
     # Initializing variables for queue and threads
     BUFFER_SIZE = 7
     qAI = Queue(7)
-    nAI = 2
-    #formatAI = [i*4 for i in range(nAI)]
-    formatAI = [0,4]
-
+    nAI = 4
+    formatAI = [i*4 for i in range(nAI)]
+    #formatAI = [0,4]
     # INITIALIZING THREADS
     producerAI_thread = Thread(target=producerAI,args=(formatAI,qAI))
     producerAI_thread.start()
