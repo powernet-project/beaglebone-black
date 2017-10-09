@@ -29,7 +29,7 @@ for key in gpioDict:
 
 
 # Initializing Firebase
-f = fb('https://fb-powernet.firebaseio.com/AfternoonTest')
+f = fb('https://fb-powernet.firebaseio.com/ApplianceTest')
 #f = fb('https://fb-powernet.firebaseio.com/OvernightTest')
 
 def analogRead(off_value):
@@ -53,8 +53,10 @@ def producerAI(formatAI,qAI):
         ai0 = analogRead(formatAI[0])
         dts.append(str(datetime.now()))
         ai1 = analogRead(formatAI[1])
+        dts.append(str(datetime.now()))
+        ai2 = analogRead(formatAI[2])
         #print "Putting AI Data..."
-        tempAI = zip(ai0,ai1)
+        tempAI = zip(ai0,ai1,ai2)
         tempQueue = [tempAI, dts]
         qAI.put(tempQueue)
         #print "Queue done..."
@@ -64,20 +66,22 @@ def producerAI(formatAI,qAI):
 # Current RMS calculation for consumerAI
 def RMS(data):
     # The size of sumI is the size of the AIN ports
-    sumI = [0,0]
+    sumI = [0,0,0]
     for val in data:
         sumI[0]+=math.pow(val[0],2)
         sumI[1]+=math.pow(val[1],2)
+        sumI[2]+=math.pow(val[2],2)
 
     rmsA0 = convertion * math.sqrt(sumI[0]/nSamples)
     rmsA1 = convertion * math.sqrt(sumI[1]/nSamples)
-    return [rmsA0,rmsA1]
+    rmsA2 = convertion * math.sqrt(sumI[2]/nSamples)
+    return [rmsA0,rmsA1,rmsA2]
 
 
 def consumerAI(qAI):
     #print "CONSUMER_AI..."
     # Template for DB
-    template = [{"sensor_id": 1, "samples": []}, {"sensor_id": 2, "samples": []}]
+    template = [{"sensor_id": 1, "samples": []}, {"sensor_id": 2, "samples": []}, {"sensor_id": 3, "samples": []}]
     dFB = copy.deepcopy(template)
     while(True):
         if not qAI.empty():
@@ -89,6 +93,7 @@ def consumerAI(qAI):
             # Adding analog reads, sID and Date to lists for db upload
             dFB[0].get("samples").append({"RMS": Irms[0], "date_time": date[0]})
             dFB[1].get("samples").append({"RMS": Irms[1], "date_time": date[1]})
+            dFB[2].get("samples").append({"RMS": Irms[2], "date_time": date[2]})
             # Queue is done processing the element
             qAI.task_done()
             #print "Inserted..."
@@ -154,7 +159,8 @@ def main():
     # Initializing variables for queue and threads
     BUFFER_SIZE = 7
     qAI = Queue(7)
-    nAI = 4
+    # Number of analog inputs -> Needs to be automated
+    nAI = 3
     formatAI = [i*4 for i in range(nAI)]
     #formatAI = [0,4]
     # INITIALIZING THREADS
@@ -162,8 +168,8 @@ def main():
     producerAI_thread.start()
     consumerAI_thread = Thread(target=consumerAI,args=(qAI,))
     consumerAI_thread.start()
-    relay_thread = Thread(target=relayTh)
-    relay_thread.start()
+    #relay_thread = Thread(target=relayTh)
+    #relay_thread.start()
 
 
 if __name__ == '__main__':
