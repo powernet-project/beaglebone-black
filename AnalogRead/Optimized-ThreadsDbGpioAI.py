@@ -21,15 +21,15 @@ convertion = 1.8/4095.0
 
 # Initializing GPIOs:
 # gpioDict = {"Lights": "P8_10", "Fan": "P8_14"}
-applianceList = ["PW1", "RA1", "AC1", "DR1", "RF1"]
-gpioDict = {"PW1": "P8_9", "RA1": "P8_10", "AC1":"P8_11", "DR1":"P8_12", "RF1":"P8_14"}
+applianceList = ["PW1", "RA1", "AC1", "DR1", "RF1","SE1"]
+gpioDict = {"PW1": "P8_9", "RA1": "P8_10", "AC1":"P8_11", "DR1":"P8_12", "RF1":"P8_14", "SE1":"P8_15"}
 for key in gpioDict:
     GPIO.setup(gpioDict[key], GPIO.OUT)
     GPIO.output(gpioDict[key], GPIO.LOW)
 
 
 # Initializing Firebase
-f = fb('https://fb-powernet.firebaseio.com/ApplianceTest')
+f = fb('https://fb-powernet.firebaseio.com/ApplianceTest09')
 #f = fb('https://fb-powernet.firebaseio.com/OvernightTest')
 
 def analogRead(off_value):
@@ -68,13 +68,13 @@ def RMS(data):
     # The size of sumI is the size of the AIN ports
     sumI = [0,0,0]
     for val in data:
-        sumI[0]+=math.pow(val[0],2)
-        sumI[1]+=math.pow(val[1],2)
-        sumI[2]+=math.pow(val[2],2)
+        sumI[0]+=math.pow((val[0]*convertion-0.89),2)
+        sumI[1]+=math.pow((val[1]*convertion-0.89),2)
+        sumI[2]+=math.pow((val[2]*convertion-0.89),2)
 
-    rmsA0 = convertion * math.sqrt(sumI[0]/nSamples)
-    rmsA1 = convertion * math.sqrt(sumI[1]/nSamples)
-    rmsA2 = convertion * math.sqrt(sumI[2]/nSamples)
+    rmsA0 = math.sqrt(sumI[0]/nSamples)
+    rmsA1 = math.sqrt(sumI[1]/nSamples)
+    rmsA2 = math.sqrt(sumI[2]/nSamples)
     return [rmsA0,rmsA1,rmsA2]
 
 
@@ -116,9 +116,9 @@ def consumerAI(qAI):
 def relayAct(device, state):
     #print "Actuating relay"
     if state == "ON":
-        GPIO.output(gpioDict[device],GPIO.HIGH)
-    else:
         GPIO.output(gpioDict[device],GPIO.LOW)
+    else:
+        GPIO.output(gpioDict[device],GPIO.HIGH)
 
 # Appliances ID:
 # id:1 ; Powerwall_1
@@ -128,21 +128,24 @@ def relayAct(device, state):
 # id:5 ; AC_1
 # id:6 ; AC_2
 def relayTh():
-    app_OrigStates = ["OFF","OFF","OFF","OFF","OFF"]
+    app_OrigStates = ["OFF","OFF","OFF","OFF","OFF","OFF"]
     while(True):
-        print "relayTh"
-        td = time.time()
-        Powerwall_1 = requests.get("http://pwrnet-158117.appspot.com/api/v1/device/1")
-        status_PW1 = Powerwall_1.json()["status"]
-        Range_1 = requests.get("http://pwrnet-158117.appspot.com/api/v1/device/3")
-        status_RA1 = Range_1.json()["status"]
+        #print "relayTh"
+        #td = time.time()
+        #Powerwall_1 = requests.get("http://pwrnet-158117.appspot.com/api/v1/device/1")
+        #status_PW1 = Powerwall_1.json()["status"]
+        #Range_1 = requests.get("http://pwrnet-158117.appspot.com/api/v1/device/3")
+        #status_RA1 = Range_1.json()["status"]
         AC_1 = requests.get("http://pwrnet-158117.appspot.com/api/v1/device/5")
         status_AC1 = AC_1.json()["status"]
-        Dryer_1 = requests.get("http://pwrnet-158117.appspot.com/api/v1/device/9")
-        status_DR1 = Dryer_1.json()["status"]
-        Refrigerator_1 = requests.get("http://pwrnet-158117.appspot.com/api/v1/device/10")
-        status_RF1 = Refrigerator_1.json()["status"]
-        app_NewStatus = [status_PW1, status_RA1, status_AC1, status_DR1, status_RF1]
+        #Dryer_1 = requests.get("http://pwrnet-158117.appspot.com/api/v1/device/9")
+        #status_DR1 = Dryer_1.json()["status"]
+        #Refrigerator_1 = requests.get("http://pwrnet-158117.appspot.com/api/v1/device/10")
+        #status_RF1 = Refrigerator_1.json()["status"]
+        SE_1 = requests.get("http://pwrnet-158117.appspot.com/api/v1/device/12")
+        status_SE1 = SE_1.json()["status"]
+        #app_NewStatus = [status_PW1, status_RA1, status_AC1, status_DR1, status_RF1]
+        app_NewStatus = ["OFF", "OFF", status_AC1, "OFF","OFF",status_SE1]
         for index,(first,second) in enumerate(zip(app_OrigStates,app_NewStatus)):
             if first!=second:
                 #print "Appliance: ", applianceList[index]
@@ -168,8 +171,8 @@ def main():
     producerAI_thread.start()
     consumerAI_thread = Thread(target=consumerAI,args=(qAI,))
     consumerAI_thread.start()
-    #relay_thread = Thread(target=relayTh)
-    #relay_thread.start()
+    relay_thread = Thread(target=relayTh)
+    relay_thread.start()
 
 
 if __name__ == '__main__':
