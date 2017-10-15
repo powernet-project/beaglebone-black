@@ -14,6 +14,9 @@ import time
 import copy
 import logging
 import requests
+from raven import Client
+
+client = Client('https://e3b3b7139bc64177b9694b836c1c5bd6:fbd8d4def9db41d0abe885a35f034118@sentry.io/230474')
 
 # Global variables
 nSamples = 100
