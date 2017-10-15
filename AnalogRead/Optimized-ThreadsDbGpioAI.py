@@ -6,16 +6,23 @@
 import beaglebone_pru_adc as adc
 import Adafruit_BBIO.GPIO as GPIO
 import math
+import time
+import copy
+import requests
+import logging
+
 from Queue import Queue
+from raven import Client
 from threading import Thread
 from datetime import datetime
 from firebase import Firebase as fb
-import time
-import copy
-import logging
-import requests
-from raven import Client
+from logging.handlers import RotatingFileHandler
 
+logger = logging.getLogger(__name__)
+logger.setLevel(logging.DEBUG)
+handler = RotatingFileHandler('my_log.log', maxBytes=2000, backupCount=10)
+logger.addHandler(handler)
+    
 client = Client('https://e3b3b7139bc64177b9694b836c1c5bd6:fbd8d4def9db41d0abe885a35f034118@sentry.io/230474')
 
 # Global variables
@@ -112,7 +119,8 @@ def consumerAI(qAI):
                     #print "dFB: ", dFB
             #        print datetime.now()
                 except Exception as e:
-                    logging.exception("message")
+                    logger.exception(e)
+                    client.captureException()
 
 
 # Reading if there is any input for the relay
@@ -179,4 +187,9 @@ def main():
 
 
 if __name__ == '__main__':
-    main()
+    try:
+        main()
+    except Exception as e:
+        logger.exception(e)
+        client.captureException()
+        main()
