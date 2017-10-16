@@ -9,23 +9,24 @@ import math
 import time
 import copy
 import requests
-#import logging
+import logging
 
 from Queue import Queue
 from raven import Client
 from threading import Thread
 from datetime import datetime
 from firebase import Firebase as fb
-#from logging.handlers import RotatingFileHandler
+from logging.handlers import RotatingFileHandler
 
-# logger = logging.getLogger(__name__)
-# logger.setLevel(logging.DEBUG)
-# handler = RotatingFileHandler('my_log.log', maxBytes=2000, backupCount=10)
-# logger.addHandler(handler)
+logger = logging.getLogger(__name__)
+logger.setLevel(logging.DEBUG)
+handler = RotatingFileHandler('my_log.log', maxBytes=2000, backupCount=10)
+logger.addHandler(handler)
     
 client = Client('https://e3b3b7139bc64177b9694b836c1c5bd6:fbd8d4def9db41d0abe885a35f034118@sentry.io/230474')
 
 # Global variables
+PWRNET_API_BASE_URL = "http://pwrnet-158117.appspot.com/api/v1/"
 nSamples = 100
 convertion = 1.8/4095.0
 
@@ -111,7 +112,15 @@ def consumerAI(qAI):
             #print "TEMPLATE: ", template
             if(len(dFB[1]["samples"])==10):
                 try:
-                    f.push(dFB)
+                    #f.push(dFB)
+                    # send the request to the powernet site instead of firebase
+                    r_post_rms = requests.post(PWRNET_API_BASE_URL + "rms/", json={'devices_json': dFB})
+                    if r_post_rms.status_code == requests.codes.ok:
+                        logger.info("Request was successful")
+                    else:
+                        logger.exception("Request failed")
+                        client.captureMessage("The POST request failed")
+
                     dFB[:]=[]
                     dFB = None
                     dFB = copy.deepcopy(template)
@@ -119,7 +128,7 @@ def consumerAI(qAI):
                     #print "dFB: ", dFB
             #        print datetime.now()
                 except Exception as e:
-                    #logger.exception(e)
+                    logger.exception(e)
                     client.captureException()
 
 
@@ -147,13 +156,13 @@ def relayTh():
         #status_PW1 = Powerwall_1.json()["status"]
         #Range_1 = requests.get("http://pwrnet-158117.appspot.com/api/v1/device/3")
         #status_RA1 = Range_1.json()["status"]
-        AC_1 = requests.get("http://pwrnet-158117.appspot.com/api/v1/device/5")
+        AC_1 = requests.get(PWRNET_API_BASE_URL + "device/5")
         status_AC1 = AC_1.json()["status"]
         #Dryer_1 = requests.get("http://pwrnet-158117.appspot.com/api/v1/device/9")
         #status_DR1 = Dryer_1.json()["status"]
         #Refrigerator_1 = requests.get("http://pwrnet-158117.appspot.com/api/v1/device/10")
         #status_RF1 = Refrigerator_1.json()["status"]
-        SE_1 = requests.get("http://pwrnet-158117.appspot.com/api/v1/device/12")
+        SE_1 = requests.get(PWRNET_API_BASE_URL + "device/12")
         status_SE1 = SE_1.json()["status"]
         #app_NewStatus = [status_PW1, status_RA1, status_AC1, status_DR1, status_RF1]
         app_NewStatus = ["OFF", "OFF", status_AC1, "OFF","OFF",status_SE1]
@@ -190,6 +199,6 @@ if __name__ == '__main__':
     try:
         main()
     except Exception as e:
-        #logger.exception(e)
+        logger.exception(e)
         client.captureException()
         main()
