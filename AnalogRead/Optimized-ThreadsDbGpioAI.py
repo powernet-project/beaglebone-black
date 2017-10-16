@@ -115,7 +115,7 @@ def consumerAI(qAI):
                     #f.push(dFB)
                     # send the request to the powernet site instead of firebase
                     r_post_rms = requests.post(PWRNET_API_BASE_URL + "rms/", json={'devices_json': dFB})
-                    if r_post_rms.status_code == requests.codes.ok:
+                    if r_post_rms.status_code == 201:
                         logger.info("Request was successful")
                     else:
                         logger.exception("Request failed")
