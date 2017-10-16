@@ -119,7 +119,7 @@ def consumerAI(qAI):
                         logger.info("Request was successful")
                     else:
                         logger.exception("Request failed")
-                        client.captureMessage("The POST request failed")
+                        r_post_rms.raise_for_status()
 
                     dFB[:]=[]
                     dFB = None
