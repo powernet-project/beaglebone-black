@@ -60,12 +60,13 @@ def analog_read(off_value):
     """
         Analog Reading
     """
+    logger('Analog read called')
     capture = adc.Capture()
     capture.cap_delay = 50000
-    capture.oscilloscope_init(adc.OFF_VALUES+off_value, N_SAMPLES)
+    capture.oscilloscope_init(adc.OFF_VALUES + off_value, N_SAMPLES)
     capture.start()
     
-    while not (capture.oscilloscope_is_complete()):
+    while not capture.oscilloscope_is_complete():
         False  # This is a dumb condition just to keep the loop running
 
     capture.stop()
@@ -78,7 +79,7 @@ def producer_ai(format_ai, q_ai):
     """
         Producer AI
     """
-    
+    logger('Producer AI called')
     while(True):
         dts = []  # date/time stamp for each start of analog read
         
@@ -93,6 +94,8 @@ def producer_ai(format_ai, q_ai):
         
         temp_ai = zip(ai0, ai1, ai2)
         temp_queue = [temp_ai, dts]
+
+        logger('Adding AI to the queue')
         q_ai.put(temp_queue)
         
         time.sleep(2)
@@ -120,6 +123,7 @@ def consumer_ai(q_ai):
     """
         Consumer AI
     """
+    logger('Consumer AI called')
     template = [
         {
             "sensor_id": 1, 
@@ -177,9 +181,9 @@ def relay_act(device, state):
         Reading if there is any input for the relay
     """
     if state == "ON":
-        GPIO.output(gpio_map[device],GPIO.LOW)
+        GPIO.output(gpio_map[device], GPIO.LOW)
     else:
-        GPIO.output(gpio_map[device],GPIO.HIGH)
+        GPIO.output(gpio_map[device], GPIO.HIGH)
 
 
 def relay_th():
@@ -203,8 +207,8 @@ def relay_th():
 
         app_new_status = ["OFF", "OFF", status_AC1, "OFF", "OFF", status_SE1]
         
-        for index,(first,second) in enumerate(zip(app_orig_states, app_new_status)):
-            if first!=second:
+        for index, (first, second) in enumerate(zip(app_orig_states, app_new_status)):
+            if first != second:
                 relay_act(appliance_lst[index], second)
                 app_orig_states = copy.deepcopy(app_new_status)
                 
