@@ -1,7 +1,16 @@
-# Based of:
-# https://www.troyfawkes.com/learn-python-multithreading-queues-basics/
+"""
+    Setup the Home Hub for use in the Powernet system
 
-#OBS: Yuting's load model: real power at <=1min
+    Implementation of multi threading based of:
+    https://www.troyfawkes.com/learn-python-multithreading-queues-basics/
+
+    OBS: Yuting's load model: real power at <=1min
+"""
+__author__ = 'Gustavo Cezar'
+__copyright__ = 'Stanford University'
+__version__ = '0.1'
+__email__ = 'gcezar@stanford.edu'
+__status__ = 'Prototype'
 
 import beaglebone_pru_adc as adc
 import Adafruit_BBIO.GPIO as GPIO
@@ -18,139 +27,179 @@ from datetime import datetime
 from firebase import Firebase as fb
 from logging.handlers import RotatingFileHandler
 
+# Global variables
+N_SAMPLES = 100
+CONVERTION = 1.8/4095.0
+FB_API_BASE_URL = 'https://fb-powernet.firebaseio.com/'
+PWRNET_API_BASE_URL = 'http://pwrnet-158117.appspot.com/api/v1/'
+SENTRY_DSN = 'https://e3b3b7139bc64177b9694b836c1c5bd6:fbd8d4def9db41d0abe885a35f034118@sentry.io/230474'
+
+# Logger setup for a rotating file handler
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.DEBUG)
 handler = RotatingFileHandler('my_log.log', maxBytes=2000, backupCount=10)
 logger.addHandler(handler)
-    
-client = Client('https://e3b3b7139bc64177b9694b836c1c5bd6:fbd8d4def9db41d0abe885a35f034118@sentry.io/230474')
 
-# Global variables
-PWRNET_API_BASE_URL = "http://pwrnet-158117.appspot.com/api/v1/"
-nSamples = 100
-convertion = 1.8/4095.0
-
-# Initializing GPIOs:
-# gpioDict = {"Lights": "P8_10", "Fan": "P8_14"}
-applianceList = ["PW1", "RA1", "AC1", "DR1", "RF1","SE1"]
-gpioDict = {"PW1": "P8_9", "RA1": "P8_10", "AC1":"P8_11", "DR1":"P8_12", "RF1":"P8_14", "SE1":"P8_15"}
-for key in gpioDict:
-    GPIO.setup(gpioDict[key], GPIO.OUT)
-    GPIO.output(gpioDict[key], GPIO.LOW)
-
+# Sentry setup for additional error reporting via 3rd party cloud service  
+client = Client(SENTRY_DSN)
 
 # Initializing Firebase
-f = fb('https://fb-powernet.firebaseio.com/ApplianceTest09')
-#f = fb('https://fb-powernet.firebaseio.com/OvernightTest')
+pwr_firebase = fb(FB_API_BASE_URL + 'ApplianceTest09')
 
-def analogRead(off_value):
+# Initializing GPIOs:
+appliance_lst = ["PW1", "RA1", "AC1", "DR1", "RF1", "SE1"]
+gpio_map = {"PW1": "P8_9", "RA1": "P8_10", "AC1": "P8_11",
+            "DR1": "P8_12", "RF1": "P8_14", "SE1": "P8_15"}
+
+for key in gpio_map:
+    GPIO.setup(gpio_map[key], GPIO.OUT)
+    GPIO.output(gpio_map[key], GPIO.LOW)
+
+
+def analog_read(off_value):
+    """
+        Analog Reading
+    """
     capture = adc.Capture()
     capture.cap_delay = 50000
-    capture.oscilloscope_init(adc.OFF_VALUES+off_value, nSamples)
+    capture.oscilloscope_init(adc.OFF_VALUES+off_value, N_SAMPLES)
     capture.start()
+    
     while not (capture.oscilloscope_is_complete()):
-        # This is a dumb condition just to keep the loop running
-        False
+        False  # This is a dumb condition just to keep the loop running
+
     capture.stop()
     capture.wait()
     capture.close()
-    return capture.oscilloscope_data(nSamples)
+    return capture.oscilloscope_data(N_SAMPLES)
 
-def producerAI(formatAI,qAI):
+
+def producer_ai(format_ai, q_ai):
+    """
+        Producer AI
+    """
+    
     #print "PRODUCER_AI..."
     while(True):
-        dts = []    # date/time stamp for each start of analog read
+        dts = []  # date/time stamp for each start of analog read
+        
         dts.append(str(datetime.now()))
-        ai0 = analogRead(formatAI[0])
+        ai0 = analog_read(format_ai[0])
+        
         dts.append(str(datetime.now()))
-        ai1 = analogRead(formatAI[1])
+        ai1 = analog_read(format_ai[1])
+        
         dts.append(str(datetime.now()))
-        ai2 = analogRead(formatAI[2])
+        ai2 = analog_read(format_ai[2])
+        
         #print "Putting AI Data..."
-        tempAI = zip(ai0,ai1,ai2)
-        tempQueue = [tempAI, dts]
-        qAI.put(tempQueue)
+        temp_ai = zip(ai0,ai1,ai2)
+        temp_queue = [temp_ai, dts]
+        q_ai.put(temp_queue)
+        
         #print "Queue done..."
         time.sleep(2)
 
 
-# Current RMS calculation for consumerAI
 def RMS(data):
-    # The size of sumI is the size of the AIN ports
-    sumI = [0,0,0]
+    """
+        Current RMS calculation for consumer_ai
+    """
+    # The size of sum_i is the size of the AIN ports
+    sum_i = [0, 0, 0]
     for val in data:
-        sumI[0]+=math.pow((val[0]*convertion-0.89),2)
-        sumI[1]+=math.pow((val[1]*convertion-0.89),2)
-        sumI[2]+=math.pow((val[2]*convertion-0.89),2)
+        sum_i[0] += math.pow((val[0] * CONVERTION - 0.89), 2)
+        sum_i[1] += math.pow((val[1] * CONVERTION - 0.89), 2)
+        sum_i[2] += math.pow((val[2] * CONVERTION - 0.89), 2)
 
-    rmsA0 = math.sqrt(sumI[0]/nSamples)
-    rmsA1 = math.sqrt(sumI[1]/nSamples)
-    rmsA2 = math.sqrt(sumI[2]/nSamples)
-    return [rmsA0,rmsA1,rmsA2]
+    rms_a0 = math.sqrt(sum_i[0] / N_SAMPLES)
+    rms_a1 = math.sqrt(sum_i[1] / N_SAMPLES)
+    rms_a2 = math.sqrt(sum_i[2] / N_SAMPLES)
+
+    return [rms_a0, rms_a1, rms_a2]
 
 
-def consumerAI(qAI):
-    #print "CONSUMER_AI..."
-    # Template for DB
-    template = [{"sensor_id": 1, "samples": []}, {"sensor_id": 2, "samples": []}, {"sensor_id": 3, "samples": []}]
-    dFB = copy.deepcopy(template)
+def consumer_ai(q_ai):
+    """
+        Consumer AI
+    """
+    template = [
+        {
+            "sensor_id": 1, 
+            "samples": []
+        }, {
+            "sensor_id": 2, 
+            "samples": []
+        }, {
+            "sensor_id": 3, 
+            "samples": []
+        }
+    ]
+
+    d_fb = copy.deepcopy(template)
+
     while(True):
-        if not qAI.empty():
-            tempCons = qAI.get()
-            ai = tempCons[0]
-            date = tempCons[1]
-            #print "Consumed queue"
-            Irms = RMS(ai[1:])
+        if not q_ai.empty():
+    
+            temp_cons = q_ai.get()
+            temp_ai = temp_cons[0]
+            temp_date = temp_cons[1]
+            
+            i_rms = RMS(temp_ai[1:])
+            
             # Adding analog reads, sID and Date to lists for db upload
-            dFB[0].get("samples").append({"RMS": Irms[0], "date_time": date[0]})
-            dFB[1].get("samples").append({"RMS": Irms[1], "date_time": date[1]})
-            dFB[2].get("samples").append({"RMS": Irms[2], "date_time": date[2]})
+            d_fb[0].get("samples").append({"RMS": i_rms[0], "date_time": temp_date[0]})
+            d_fb[1].get("samples").append({"RMS": i_rms[1], "date_time": temp_date[1]})
+            d_fb[2].get("samples").append({"RMS": i_rms[2], "date_time": temp_date[2]})
+            
             # Queue is done processing the element
-            qAI.task_done()
-            #print "Inserted..."
-            #print "dFB-1:", len(dFB[1]["samples"])
-            #print "TEMPLATE: ", template
-            if(len(dFB[1]["samples"])==10):
+            q_ai.task_done()
+            
+            if len(d_fb[1]["samples"]) == 10:
                 try:
-                    #f.push(dFB)
                     # send the request to the powernet site instead of firebase
-                    r_post_rms = requests.post(PWRNET_API_BASE_URL + "rms/", json={'devices_json': dFB})
+                    r_post_rms = requests.post(PWRNET_API_BASE_URL + "rms/", json={'devices_json': d_fb})
+                    
                     if r_post_rms.status_code == 201:
                         logger.info("Request was successful")
                     else:
                         logger.exception("Request failed")
                         r_post_rms.raise_for_status()
 
-                    dFB[:]=[]
-                    dFB = None
-                    dFB = copy.deepcopy(template)
-            #        print "Done writing to FB-DB"
-                    #print "dFB: ", dFB
-            #        print datetime.now()
-                except Exception as e:
-                    logger.exception(e)
+                    d_fb[:]=[]
+                    d_fb = None
+                    d_fb = copy.deepcopy(template)
+            
+                except Exception as exc:
+                    logger.exception(exc)
                     client.captureException()
 
 
-# Reading if there is any input for the relay
-def relayAct(device, state):
+def relay_act(device, state):
+    """
+        Reading if there is any input for the relay
+    """
     #print "Actuating relay"
     if state == "ON":
-        GPIO.output(gpioDict[device],GPIO.LOW)
+        GPIO.output(gpio_map[device],GPIO.LOW)
     else:
-        GPIO.output(gpioDict[device],GPIO.HIGH)
+        GPIO.output(gpio_map[device],GPIO.HIGH)
 
-# Appliances ID:
-# id:1 ; Powerwall_1
-# id:2 ; Powerwall_2
-# id:3 ; Range_1
-# id:4 ; Range_2
-# id:5 ; AC_1
-# id:6 ; AC_2
-def relayTh():
-    app_OrigStates = ["OFF","OFF","OFF","OFF","OFF","OFF"]
+
+def relay_th():
+    """
+        Appliances ID:
+            id:1 ; Powerwall_1
+            id:2 ; Powerwall_2
+            id:3 ; Range_1
+            id:4 ; Range_2
+            id:5 ; AC_1
+            id:6 ; AC_2
+    """
+    app_orig_states = ["OFF", "OFF", "OFF", "OFF", "OFF", "OFF"]
+
     while(True):
-        #print "relayTh"
+        #print "relay_th"
         #td = time.time()
         #Powerwall_1 = requests.get("http://pwrnet-158117.appspot.com/api/v1/device/1")
         #status_PW1 = Powerwall_1.json()["status"]
@@ -164,41 +213,50 @@ def relayTh():
         #status_RF1 = Refrigerator_1.json()["status"]
         SE_1 = requests.get(PWRNET_API_BASE_URL + "device/12")
         status_SE1 = SE_1.json()["status"]
-        #app_NewStatus = [status_PW1, status_RA1, status_AC1, status_DR1, status_RF1]
-        app_NewStatus = ["OFF", "OFF", status_AC1, "OFF","OFF",status_SE1]
-        for index,(first,second) in enumerate(zip(app_OrigStates,app_NewStatus)):
+        #app_new_status = [status_PW1, status_RA1, status_AC1, status_DR1, status_RF1]
+        app_new_status = ["OFF", "OFF", status_AC1, "OFF","OFF",status_SE1]
+        
+        for index,(first,second) in enumerate(zip(app_orig_states, app_new_status)):
             if first!=second:
-                #print "Appliance: ", applianceList[index]
+                #print "Appliance: ", appliance_lst[index]
                 #print "Status: ", second
-                relayAct(applianceList[index],second)
-                app_OrigStates = copy.deepcopy(app_NewStatus)
+                relay_act(appliance_lst[index], second)
+                app_orig_states = copy.deepcopy(app_new_status)
                 #print app_OrigStates
         #print "time: ", time.time()-td
         time.sleep(1)
 
 
 def main():
+    """
+        Main entry point into the Home Hub system operation
 
+        Detailed description:
+
+    """
     # Initializing variables for queue and threads
-    BUFFER_SIZE = 7
-    qAI = Queue(7)
-    # Number of analog inputs -> Needs to be automated
-    nAI = 3
-    formatAI = [i*4 for i in range(nAI)]
-    #formatAI = [0,4]
-    # INITIALIZING THREADS
-    producerAI_thread = Thread(target=producerAI,args=(formatAI,qAI))
-    producerAI_thread.start()
-    consumerAI_thread = Thread(target=consumerAI,args=(qAI,))
-    consumerAI_thread.start()
-    relay_thread = Thread(target=relayTh)
+    buffer_size = 7
+    q_ai = Queue(buffer_size)
+
+    # FIXME: Number of analog inputs -> Needs to be automated
+    n_ai = 3
+    format_ai = [i * 4 for i in range(n_ai)]
+
+    # Initialize threads
+    producer_ai_thread = Thread(target=producer_ai, args=(format_ai, q_ai))
+    producer_ai_thread.start()
+
+    consumer_ai_thread = Thread(target=consumer_ai, args=(q_ai,))
+    consumer_ai_thread.start()
+
+    relay_thread = Thread(target=relay_th)
     relay_thread.start()
 
 
 if __name__ == '__main__':
     try:
         main()
-    except Exception as e:
-        logger.exception(e)
+    except Exception as exc:
+        logger.exception(exc)
         client.captureException()
         main()
