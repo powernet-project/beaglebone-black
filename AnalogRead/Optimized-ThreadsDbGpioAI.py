@@ -79,7 +79,6 @@ def producer_ai(format_ai, q_ai):
         Producer AI
     """
     
-    #print "PRODUCER_AI..."
     while(True):
         dts = []  # date/time stamp for each start of analog read
         
@@ -92,12 +91,10 @@ def producer_ai(format_ai, q_ai):
         dts.append(str(datetime.now()))
         ai2 = analog_read(format_ai[2])
         
-        #print "Putting AI Data..."
-        temp_ai = zip(ai0,ai1,ai2)
+        temp_ai = zip(ai0, ai1, ai2)
         temp_queue = [temp_ai, dts]
         q_ai.put(temp_queue)
         
-        #print "Queue done..."
         time.sleep(2)
 
 
@@ -179,7 +176,6 @@ def relay_act(device, state):
     """
         Reading if there is any input for the relay
     """
-    #print "Actuating relay"
     if state == "ON":
         GPIO.output(gpio_map[device],GPIO.LOW)
     else:
@@ -199,31 +195,19 @@ def relay_th():
     app_orig_states = ["OFF", "OFF", "OFF", "OFF", "OFF", "OFF"]
 
     while(True):
-        #print "relay_th"
-        #td = time.time()
-        #Powerwall_1 = requests.get("http://pwrnet-158117.appspot.com/api/v1/device/1")
-        #status_PW1 = Powerwall_1.json()["status"]
-        #Range_1 = requests.get("http://pwrnet-158117.appspot.com/api/v1/device/3")
-        #status_RA1 = Range_1.json()["status"]
         AC_1 = requests.get(PWRNET_API_BASE_URL + "device/5")
         status_AC1 = AC_1.json()["status"]
-        #Dryer_1 = requests.get("http://pwrnet-158117.appspot.com/api/v1/device/9")
-        #status_DR1 = Dryer_1.json()["status"]
-        #Refrigerator_1 = requests.get("http://pwrnet-158117.appspot.com/api/v1/device/10")
-        #status_RF1 = Refrigerator_1.json()["status"]
+        
         SE_1 = requests.get(PWRNET_API_BASE_URL + "device/12")
         status_SE1 = SE_1.json()["status"]
-        #app_new_status = [status_PW1, status_RA1, status_AC1, status_DR1, status_RF1]
-        app_new_status = ["OFF", "OFF", status_AC1, "OFF","OFF",status_SE1]
+
+        app_new_status = ["OFF", "OFF", status_AC1, "OFF", "OFF", status_SE1]
         
         for index,(first,second) in enumerate(zip(app_orig_states, app_new_status)):
             if first!=second:
-                #print "Appliance: ", appliance_lst[index]
-                #print "Status: ", second
                 relay_act(appliance_lst[index], second)
                 app_orig_states = copy.deepcopy(app_new_status)
-                #print app_OrigStates
-        #print "time: ", time.time()-td
+                
         time.sleep(1)
 
 
@@ -255,8 +239,10 @@ def main():
 
 if __name__ == '__main__':
     try:
+        logger.info("Starting main program")
         main()
     except Exception as exc:
         logger.exception(exc)
         client.captureException()
+        logger.info("Re-starting main program")
         main()
