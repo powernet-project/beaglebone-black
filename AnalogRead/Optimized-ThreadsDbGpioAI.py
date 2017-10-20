@@ -169,7 +169,8 @@ def consumer_ai(q_ai):
                         r_post_rms = requests.post(PWRNET_API_BASE_URL + "rms/", json={'devices_json': d_fb}, timeout = 2)
 
                         if r_post_rms.status_code == 201:
-                            logger.info("Request was successful")
+                            # logger.info("Request was successful")
+                            pass
                         else:
                             logger.exception("Request failed")
                             r_post_rms.raise_for_status()
@@ -181,6 +182,10 @@ def consumer_ai(q_ai):
                     except Exception as exc:
                         logger.exception(exc)
                         client.captureException()
+
+                        d_fb[:]=[]
+                        d_fb = None
+                        d_fb = copy.deepcopy(template)
 
             except Exception as exc:
                 logger.exception(exc)
@@ -267,8 +272,8 @@ def main():
     consumer_ai_thread = Thread(name='Consumer',target=consumer_ai, args=(q_ai,))
     consumer_ai_thread.start()
 
-    relay_thread = Thread(name='Relay',target=relay_th)
-    relay_thread.start()
+    #relay_thread = Thread(name='Relay',target=relay_th)
+    #relay_thread.start()
 
 
 if __name__ == '__main__':
