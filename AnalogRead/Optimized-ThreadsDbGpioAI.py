@@ -272,8 +272,8 @@ def main():
     consumer_ai_thread = Thread(name='Consumer',target=consumer_ai, args=(q_ai,))
     consumer_ai_thread.start()
 
-    #relay_thread = Thread(name='Relay',target=relay_th)
-    #relay_thread.start()
+    relay_thread = Thread(name='Relay',target=relay_th)
+    relay_thread.start()
 
 
 if __name__ == '__main__':
