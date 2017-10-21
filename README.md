@@ -3,6 +3,9 @@ We are finally standardizing this.
 
 WIP
 
+When running code from ssh run (this code will make sure when you terminate the ssh session the code still runs on BBB):
+nohup python <filename> & exit
+
 Connecting to Wifi:
 run: wicd-curses
 (skip next step if BBB is already "basic configured")
