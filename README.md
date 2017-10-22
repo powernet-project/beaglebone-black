@@ -4,14 +4,21 @@ We are finally standardizing this.
 WIP
 
 When running code from ssh run (this code will make sure when you terminate the ssh session the code still runs on BBB):
-nohup python <filename> & exit
+
+nohup python "filename" & exit
 
 Connecting to Wifi:
+
 run: wicd-curses
+
 (skip next step if BBB is already "basic configured")
+
 press: Shift-p; (go to preferences and put wlan0 - or whatever port your dongle was detected)
+
 press: F10; to save and exit
+
 press: shift-R; to refresh all networks
+
 Select wifi (right arrow) and insert password
 
 Creating virtual environment and cloning repo:
