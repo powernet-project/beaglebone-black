@@ -30,6 +30,7 @@ from logging.handlers import RotatingFileHandler
 # Global variables
 N_SAMPLES = 100
 CONVERTION = 1.8/4095.0
+REQUEST_TIMEOUT = 10
 FB_API_BASE_URL = 'https://fb-powernet.firebaseio.com/'
 PWRNET_API_BASE_URL = 'http://pwrnet-158117.appspot.com/api/v1/'
 SENTRY_DSN = 'https://e3b3b7139bc64177b9694b836c1c5bd6:fbd8d4def9db41d0abe885a35f034118@sentry.io/230474'
@@ -147,7 +148,6 @@ def consumer_ai(q_ai):
 
     while(True):
         if not q_ai.empty():
-
             try:
                 temp_cons = q_ai.get(True,2)
                 temp_ai = temp_cons[0]
@@ -166,7 +166,7 @@ def consumer_ai(q_ai):
                 if len(d_fb[1]["samples"]) == 10:
                     try:
                         # send the request to the powernet site instead of firebase
-                        r_post_rms = requests.post(PWRNET_API_BASE_URL + "rms/", json={'devices_json': d_fb}, timeout = 2)
+                        r_post_rms = requests.post(PWRNET_API_BASE_URL + "rms/", json={'devices_json': d_fb}, timeout=REQUEST_TIMEOUT)
 
                         if r_post_rms.status_code == 201:
                             # logger.info("Request was successful")
@@ -196,10 +196,7 @@ def relay_act(device, state):
     """
         Reading if there is any input for the relay
     """
-    if state == "ON":
-        GPIO.output(gpio_map[device], GPIO.LOW)
-    else:
-        GPIO.output(gpio_map[device], GPIO.HIGH)
+    GPIO.output(gpio_map[device], GPIO.LOW if state == 'ON' else GPIO.HIGH)
 
 
 def relay_th():
@@ -209,22 +206,20 @@ def relay_th():
 
     logger.info('Relay Thread called')
 
-    """
-        Appliances ID:
-            id:1 ; Powerwall_1
-            id:2 ; Powerwall_2
-            id:3 ; Range_1
-            id:4 ; Range_2
-            id:5 ; AC_1
-            id:6 ; AC_2
-    """
+    # Appliances ID:
+    #     id:1 ; Powerwall_1
+    #     id:2 ; Powerwall_2
+    #     id:3 ; Range_1
+    #     id:4 ; Range_2
+    #     id:5 ; AC_1
+    #     id:6 ; AC_2
+    
     app_orig_states = ["OFF", "OFF", "OFF", "OFF", "OFF", "OFF"]
     app_new_status = ["OFF", "OFF", "OFF", "OFF", "OFF", "OFF"]
-
-    # FIXME Need to setup only one request and get status of all appliances
+    
     while(True):
         try:
-            AC_1 = requests.get(PWRNET_API_BASE_URL + "device/5", timeout = 2)
+            AC_1 = requests.get(PWRNET_API_BASE_URL + "device/5", timeout=REQUEST_TIMEOUT)
             status_AC1 = AC_1.json()["status"]
 
         except Exception as exc:
@@ -233,7 +228,7 @@ def relay_th():
             status_AC1 = app_new_status[2]
 
         try:
-            SE_1 = requests.get(PWRNET_API_BASE_URL + "device/12", timeout = 2)
+            SE_1 = requests.get(PWRNET_API_BASE_URL + "device/12", timeout=REQUEST_TIMEOUT)
             status_SE1 = SE_1.json()["status"]
 
         except Exception as exc:
