@@ -30,6 +30,8 @@ from logging.handlers import RotatingFileHandler
 # Global variables
 N_SAMPLES = 100
 CONVERTION = 1.8/4095.0
+CT10 = 10   # 10A/1V
+CT20 = 20   # 20A/1V
 REQUEST_TIMEOUT = 10
 FB_API_BASE_URL = 'https://fb-powernet.firebaseio.com/'
 PWRNET_API_BASE_URL = 'http://pwrnet-158117.appspot.com/api/v1/'
@@ -48,9 +50,9 @@ client = Client(SENTRY_DSN)
 pwr_firebase = fb(FB_API_BASE_URL + 'ApplianceTest09')
 
 # Initializing GPIOs:
-appliance_lst = ["PW1", "RA1", "AC1", "DR1", "RF1", "SE1"]
-gpio_map = {"PW1": "P8_9", "RA1": "P8_10", "AC1": "P8_15",
-            "DR1": "P8_12", "RF1": "P8_14", "SE1": "P8_11"}
+appliance_lst = ["CW1", "DW1", "AC1", "RF1", "SE1"]
+gpio_map = {"CW1": "P8_9", "DW1": "P8_10", "AC1": "P8_15",
+            "RF1": "P8_14", "SE1": "P8_11"}
 
 for key in gpio_map:
     GPIO.setup(gpio_map[key], GPIO.OUT)
@@ -83,17 +85,30 @@ def producer_ai(format_ai, q_ai):
     logger.info('Producer AI called')
     while(True):
         dts = []  # date/time stamp for each start of analog read
-
+        #AC id:5
         dts.append(str(datetime.now()))
         ai0 = analog_read(format_ai[0])
-
+        #SE - Stove Exhaust id:12
         dts.append(str(datetime.now()))
         ai1 = analog_read(format_ai[1])
-
+        #RF id:10
         dts.append(str(datetime.now()))
         ai2 = analog_read(format_ai[2])
+        #CW id:13
+        dts.append(str(datetime.now()))
+        ai3 = analog_read(format_ai[3])
+        #RA - 1
+        dts.append(str(datetime.now()))
+        ai4 = analog_read(format_ai[4])
+        #RA - 2
+        dts.append(str(datetime.now()))
+        ai5 = analog_read(format_ai[5])
+        #DW id:14
+        dts.append(str(datetime.now()))
+        ai6 = analog_read(format_ai[6])
 
-        temp_ai = zip(ai0, ai1, ai2)
+
+        temp_ai = zip(ai0, ai1, ai2, ai3, ai4, ai5, ai6)
         temp_queue = [temp_ai, dts]
 
         # logger('Adding AI to the queue')
@@ -113,17 +128,25 @@ def RMS(data):
         Current RMS calculation for consumer_ai
     """
     # The size of sum_i is the size of the AIN ports
-    sum_i = [0, 0, 0]
+    sum_i = [0, 0, 0, 0, 0, 0, 0]
     for val in data:
         sum_i[0] += math.pow((val[0] * CONVERTION - 0.89), 2)
         sum_i[1] += math.pow((val[1] * CONVERTION - 0.89), 2)
         sum_i[2] += math.pow((val[2] * CONVERTION - 0.89), 2)
+        sum_i[3] += math.pow((val[3] * CONVERTION - 0.89), 2)
+        sum_i[4] += math.pow((val[4] * CONVERTION - 0.89), 2)
+        sum_i[5] += math.pow((val[5] * CONVERTION - 0.89), 2)
+        sum_i[6] += math.pow((val[6] * CONVERTION - 0.89), 2)
 
-    rms_a0 = math.sqrt(sum_i[0] / N_SAMPLES)
-    rms_a1 = math.sqrt(sum_i[1] / N_SAMPLES)
-    rms_a2 = math.sqrt(sum_i[2] / N_SAMPLES)
+    rms_a0 = math.sqrt(sum_i[0] / N_SAMPLES)*CT10
+    rms_a1 = math.sqrt(sum_i[1] / N_SAMPLES)*CT10
+    rms_a2 = math.sqrt(sum_i[2] / N_SAMPLES)*CT10
+    rms_a3 = math.sqrt(sum_i[3] / N_SAMPLES)*CT10
+    rms_a4 = math.sqrt(sum_i[4] / N_SAMPLES)*CT20
+    rms_a5 = math.sqrt(sum_i[5] / N_SAMPLES)*CT20
+    rms_a6 = math.sqrt(sum_i[6] / N_SAMPLES)*CT10
 
-    return [rms_a0, rms_a1, rms_a2]
+    return [rms_a0, rms_a1, rms_a2, rms_a3, rms_a4, rms_a5, rms_a6]
 
 
 def consumer_ai(q_ai):
@@ -133,13 +156,25 @@ def consumer_ai(q_ai):
     logger.info('Consumer AI called')
     template = [
         {
-            "sensor_id": 1,
+            "sensor_id": 5, #AC
             "samples": []
         }, {
-            "sensor_id": 2,
+            "sensor_id": 12, #SE
             "samples": []
         }, {
-            "sensor_id": 3,
+            "sensor_id": 10, #RF
+            "samples": []
+        }, {
+            "sensor_id": 13, #CW
+            "samples": []
+        }, {
+            "sensor_id": 3, # Range_1 leg
+            "samples": []
+        }, {
+            "sensor_id": 4, # Range_2 leg
+            "samples": []
+        }, {
+            "sensor_id": 14, #DW
             "samples": []
         }
     ]
@@ -159,6 +194,10 @@ def consumer_ai(q_ai):
                 d_fb[0].get("samples").append({"RMS": i_rms[0], "date_time": temp_date[0]})
                 d_fb[1].get("samples").append({"RMS": i_rms[1], "date_time": temp_date[1]})
                 d_fb[2].get("samples").append({"RMS": i_rms[2], "date_time": temp_date[2]})
+                d_fb[3].get("samples").append({"RMS": i_rms[3], "date_time": temp_date[3]})
+                d_fb[4].get("samples").append({"RMS": i_rms[4], "date_time": temp_date[4]})
+                d_fb[5].get("samples").append({"RMS": i_rms[5], "date_time": temp_date[5]})
+                d_fb[6].get("samples").append({"RMS": i_rms[6], "date_time": temp_date[6]})
 
                 # Queue is done processing the element
                 q_ai.task_done()
@@ -206,17 +245,9 @@ def relay_th():
 
     logger.info('Relay Thread called')
 
-    # Appliances ID:
-    #     id:1 ; Powerwall_1
-    #     id:2 ; Powerwall_2
-    #     id:3 ; Range_1
-    #     id:4 ; Range_2
-    #     id:5 ; AC_1
-    #     id:6 ; AC_2
-    
     app_orig_states = ["OFF", "OFF", "OFF", "OFF", "OFF", "OFF"]
     app_new_status = ["OFF", "OFF", "OFF", "OFF", "OFF", "OFF"]
-    
+
     while(True):
         try:
             AC_1 = requests.get(PWRNET_API_BASE_URL + "device/5", timeout=REQUEST_TIMEOUT)
@@ -225,7 +256,7 @@ def relay_th():
         except Exception as exc:
             logger.exception(exc)
             client.captureException()
-            status_AC1 = app_new_status[2]
+            status_AC1 = app_new_status[0]
 
         try:
             SE_1 = requests.get(PWRNET_API_BASE_URL + "device/12", timeout=REQUEST_TIMEOUT)
@@ -234,9 +265,36 @@ def relay_th():
         except Exception as exc:
             logger.exception(exc)
             client.captureException()
-            status_SE1 = app_new_status[5]
+            status_SE1 = app_new_status[1]
 
-        app_new_status = ["OFF", "OFF", status_AC1, "OFF", "OFF", status_SE1]
+        try:
+            RF_1 = requests.get(PWRNET_API_BASE_URL + "device/10", timeout=REQUEST_TIMEOUT)
+            status_RF1 = RF_1.json()["status"]
+
+        except Exception as exc:
+            logger.exception(exc)
+            client.captureException()
+            status_RF1 = app_new_status[2]
+
+        try:
+            CW_1 = requests.get(PWRNET_API_BASE_URL + "device/13", timeout=REQUEST_TIMEOUT)
+            status_CW1 = CW_1.json()["status"]
+
+        except Exception as exc:
+            logger.exception(exc)
+            client.captureException()
+            status_CW1 = app_new_status[3]
+
+        try:
+            DW_1 = requests.get(PWRNET_API_BASE_URL + "device/14", timeout=REQUEST_TIMEOUT)
+            status_DW1 = DW_1.json()["status"]
+
+        except Exception as exc:
+            logger.exception(exc)
+            client.captureException()
+            status_DW1 = app_new_status[4]
+
+        app_new_status = [status_AC1, status_SE1, status_RF1, status_CW1, status_DW1]
         for index, (first, second) in enumerate(zip(app_orig_states, app_new_status)):
             if first != second:
                 relay_act(appliance_lst[index], second)
@@ -257,7 +315,7 @@ def main():
     q_ai = Queue(buffer_size)
 
     # FIXME: Number of analog inputs -> Needs to be automated
-    n_ai = 3
+    n_ai = 7
     format_ai = [i * 4 for i in range(n_ai)]
 
     # Initialize threads
