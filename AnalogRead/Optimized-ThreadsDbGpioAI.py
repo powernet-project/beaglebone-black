@@ -50,7 +50,7 @@ client = Client(SENTRY_DSN)
 pwr_firebase = fb(FB_API_BASE_URL + 'ApplianceTest09')
 
 # Initializing GPIOs:
-appliance_lst = ["CW1", "DW1", "AC1", "RF1", "SE1"]
+appliance_lst = ["AC1", "SE1", "RF1" ,"CW1", "DW1"]
 gpio_map = {"CW1": "P8_9", "DW1": "P8_10", "AC1": "P8_15",
             "RF1": "P8_14", "SE1": "P8_11"}
 
@@ -250,51 +250,21 @@ def relay_th():
 
     while(True):
         try:
-            AC_1 = requests.get(PWRNET_API_BASE_URL + "device/5", timeout=REQUEST_TIMEOUT)
-            status_AC1 = AC_1.json()["status"]
+            dev_status = requests.get(PWRNET_API_BASE_URL + "device", timeout=REQUEST_TIMEOUT).json()["results"]
+
+            status_AC1 = [v for v in dev_status if v['id']==5][0]['status']
+            status_SE1 = [v for v in dev_status if v['id']==12][0]['status']
+            status_RF1 = [v for v in dev_status if v['id']==10][0]['status']
+            status_CW1 = [v for v in dev_status if v['id']==13][0]['status']
+            status_DW1 = [v for v in dev_status if v['id']==14][0]['status']
+
+            app_new_status = [status_AC1, status_SE1, status_RF1, status_CW1, status_DW1]
 
         except Exception as exc:
             logger.exception(exc)
             client.captureException()
-            status_AC1 = app_new_status[0]
+            app_new_status = ["OFF", "OFF", "OFF", "OFF", "OFF", "OFF"]
 
-        try:
-            SE_1 = requests.get(PWRNET_API_BASE_URL + "device/12", timeout=REQUEST_TIMEOUT)
-            status_SE1 = SE_1.json()["status"]
-
-        except Exception as exc:
-            logger.exception(exc)
-            client.captureException()
-            status_SE1 = app_new_status[1]
-
-        try:
-            RF_1 = requests.get(PWRNET_API_BASE_URL + "device/10", timeout=REQUEST_TIMEOUT)
-            status_RF1 = RF_1.json()["status"]
-
-        except Exception as exc:
-            logger.exception(exc)
-            client.captureException()
-            status_RF1 = app_new_status[2]
-
-        try:
-            CW_1 = requests.get(PWRNET_API_BASE_URL + "device/13", timeout=REQUEST_TIMEOUT)
-            status_CW1 = CW_1.json()["status"]
-
-        except Exception as exc:
-            logger.exception(exc)
-            client.captureException()
-            status_CW1 = app_new_status[3]
-
-        try:
-            DW_1 = requests.get(PWRNET_API_BASE_URL + "device/14", timeout=REQUEST_TIMEOUT)
-            status_DW1 = DW_1.json()["status"]
-
-        except Exception as exc:
-            logger.exception(exc)
-            client.captureException()
-            status_DW1 = app_new_status[4]
-
-        app_new_status = [status_AC1, status_SE1, status_RF1, status_CW1, status_DW1]
         for index, (first, second) in enumerate(zip(app_orig_states, app_new_status)):
             if first != second:
                 relay_act(appliance_lst[index], second)
