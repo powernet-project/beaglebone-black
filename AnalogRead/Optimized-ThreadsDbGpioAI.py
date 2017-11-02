@@ -263,7 +263,7 @@ def relay_th():
         except Exception as exc:
             logger.exception(exc)
             client.captureException()
-            app_new_status = ["OFF", "OFF", "OFF", "OFF", "OFF", "OFF"]
+            # app_new_status
 
         for index, (first, second) in enumerate(zip(app_orig_states, app_new_status)):
             if first != second:
