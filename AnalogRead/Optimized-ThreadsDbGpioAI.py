@@ -138,13 +138,13 @@ def RMS(data):
         sum_i[5] += math.pow((val[5] * CONVERTION - 0.89), 2)
         sum_i[6] += math.pow((val[6] * CONVERTION - 0.89), 2)
 
-    rms_a0 = math.sqrt(sum_i[0] / N_SAMPLES)*CT10
-    rms_a1 = math.sqrt(sum_i[1] / N_SAMPLES)*CT10
-    rms_a2 = math.sqrt(sum_i[2] / N_SAMPLES)*CT10
-    rms_a3 = math.sqrt(sum_i[3] / N_SAMPLES)*CT10
-    rms_a4 = math.sqrt(sum_i[4] / N_SAMPLES)*CT20
-    rms_a5 = math.sqrt(sum_i[5] / N_SAMPLES)*CT20
-    rms_a6 = math.sqrt(sum_i[6] / N_SAMPLES)*CT10
+    rms_a0 = math.sqrt(sum_i[0] / N_SAMPLES) * CT10 * 2
+    rms_a1 = math.sqrt(sum_i[1] / N_SAMPLES) * CT10 * 2
+    rms_a2 = math.sqrt(sum_i[2] / N_SAMPLES) * CT10 * 2
+    rms_a3 = math.sqrt(sum_i[3] / N_SAMPLES) * CT10 * 2
+    rms_a4 = math.sqrt(sum_i[4] / N_SAMPLES) * CT20 * 2
+    rms_a5 = math.sqrt(sum_i[5] / N_SAMPLES) * CT20 * 2
+    rms_a6 = math.sqrt(sum_i[6] / N_SAMPLES) * CT10 * 2
 
     return [rms_a0, rms_a1, rms_a2, rms_a3, rms_a4, rms_a5, rms_a6]
 
@@ -162,12 +162,12 @@ def consumer_ai(q_ai):
             "sensor_id": 12, #SE
             "samples": []
         }, {
-            "sensor_id": 10, #RF
-            "samples": []
-        }, {
             "sensor_id": 13, #CW
             "samples": []
         }, {
+            "sensor_id": 10, #RF
+            "samples": []
+        },  {
             "sensor_id": 3, # Range_1 leg
             "samples": []
         }, {
@@ -245,8 +245,8 @@ def relay_th():
 
     logger.info('Relay Thread called')
 
-    app_orig_states = ["OFF", "OFF", "OFF", "OFF", "OFF", "OFF"]
-    app_new_status = ["OFF", "OFF", "OFF", "OFF", "OFF", "OFF"]
+    app_orig_states = ["OFF", "OFF", "ON", "OFF", "OFF", "OFF"]
+    app_new_status = ["OFF", "OFF", "ON", "OFF", "OFF", "OFF"]
 
     while(True):
         try:
@@ -263,7 +263,6 @@ def relay_th():
         except Exception as exc:
             logger.exception(exc)
             client.captureException()
-            # app_new_status
 
         for index, (first, second) in enumerate(zip(app_orig_states, app_new_status)):
             if first != second:
